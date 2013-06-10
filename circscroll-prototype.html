@@ -1,0 +1,237 @@
+<html><head>
+<script>
+/*
+  Copyright 2013 Andrew Lundin
+  MIT License
+  http://opensource.org/licenses/MIT
+
+  This is only a prototype, throw-away code.
+  Don't mind the globals variables, inline constants,
+  and other elements of bad style.  ;)
+*/
+
+var prev_x = 0;
+var prev_y = 0;
+var prev_angle = 0;
+var filter_delta = 0;
+var adaptive_delta = 0;
+var prev_distance = 0;
+var coasting_delta = 0;
+var coasting_timer = 0;
+var chunk_pos = 240;
+
+function init() {
+	var pad = document.getElementById("pad");
+	pad.onmousemove = handleMouseMove;
+	handleMouseMove({clientX:0,clientY:0});
+}
+
+function handleMouseMove (event) {
+
+    // new event cancels coasting
+    if (coasting_timer)
+        window.clearInterval(coasting_timer);
+
+	info("CLEAR");
+	var dx = event.clientX - prev_x;
+	var dy = event.clientY - prev_y;
+	info("dx", dx);
+	info("dy", dy);
+	
+	var angle = Math.atan2(dy, dx);
+    var delta = delta_angle(prev_angle, angle);
+    var abs_delta = Math.abs(delta);
+	var distance = Math.sqrt(dx * dx + dy * dy);
+
+    // clamp spikes
+    if (abs_delta > .5)
+        delta = .5 * delta / abs_delta;
+	info("delta", delta);
+
+    // error estimation
+	var delta_error = (delta - filter_delta) * 10;
+	delta_error *= delta_error;
+	info("delta_error", delta_error);
+
+    // naive filter for error estimation on next event
+    filter_delta = (delta + filter_delta) / 2;
+	info("filter_delta", filter_delta);
+
+	// reduce weight for small movements
+    var min_distance = Math.min(distance, prev_distance) / 10;
+    min_distance = Math.log(min_distance + 1);
+	info("min_distance", min_distance);
+   
+    // calculate adaptive filter coefficient
+    var weight = abs_delta * min_distance / (1 + delta_error);
+    if (weight > 1)
+        weight = 1;
+	info("weight", weight);
+
+    // adaptive filter
+    if (weight > 0)
+        adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
+    
+    // cubic response
+    var output_delta = adaptive_delta * adaptive_delta * adaptive_delta;
+	info("output_delta", output_delta * 100);
+    
+    // store history
+	prev_x = event.clientX;
+	prev_y = event.clientY;
+	prev_angle = angle;
+	prev_distance = distance;
+	
+	// update bar graph and scrolling chunk
+	show_output(output_delta);
+	
+	// begin coasting if no event received after a short delay
+	// this would be integrated into the driver's existing coasting system
+	coasting_delta = output_delta;
+    coasting_timer = window.setInterval(coast, 50)
+}
+
+function coast() {
+    adaptive_delta = 0;
+    coasting_delta *= .6;
+    if (Math.abs(coasting_delta) < .001) {
+        window.clearInterval(coasting_timer);
+        coasting_delta = 0;
+    }
+	info("coasting_delta", coasting_delta * 100);
+    show_output(coasting_delta);
+}
+
+function delta_angle(a1, a2) {
+	var n = (a2 - a1);
+	var d = (2 * Math.PI);
+	var da = n - parseInt(n/d) * d;
+
+    if (da < 0)
+        da += 2 * Math.PI;
+    if (da > Math.PI)
+        da -= 2 * Math.PI;
+    return da;
+}
+
+function show_output(output_delta) {
+	var display_delta = output_delta * 2000;
+	var bar = document.getElementById("bar");
+	bar.style.height = parseInt(Math.abs(display_delta)) + "px";
+	if (display_delta < 0) {
+	    bar.style.top = 250 + parseInt(display_delta) + "px";
+	    bar.style.backgroundColor = "red";
+	} else {
+	    bar.style.top = 250 + "px";
+	    bar.style.backgroundColor = "blue";
+	}
+
+	var chunk = document.getElementById("chunk");
+	chunk_pos -= display_delta / 5;
+	if (chunk_pos < 0) chunk_pos += 480;
+	if (chunk_pos > 480) chunk_pos -= 480;
+	chunk.style.top = parseInt(chunk_pos) + "px";
+}
+
+function info(label, value) {
+	var infodiv = document.getElementById("info");
+	if (label == "CLEAR") infodiv.innerHTML = "";
+	else infodiv.innerHTML += label + ": " + value.toFixed(2) + "<br>";
+}
+
+</script>
+
+<style>
+    * {
+        font-family: sans-serif;
+        font-size: 14px;
+    }
+    
+    #pad {
+        float: left;
+        border: 1px solid black;
+        background-color: gray;
+        color: darkgray;
+        text-align: center;
+        font-size: 20px;
+        line-height: 100px;
+        width: 500px;
+        height: 500px;
+        margin: auto;
+    }
+
+    #outputContainer {
+        float: left;
+        border: 1px solid black;
+        width: 15px;
+        height: 500px;
+        margin: 0 5px;
+    }
+    
+    #chunkContainer, #barContainer {
+        float: left;
+        border: 1px solid black;
+        width: 20px;
+        height: 500px;
+        margin: 0 5px;
+    }
+
+    #chunk {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        top: 240px;
+        color: yellow;
+        background-color: green;
+        text-align: center;
+        line-height: 20px;
+    }
+
+    #bar {
+        position: relative;
+        background-color: red;
+        width: 20px;
+    }
+    
+    #info {
+        float: left;
+        font-family: monospace;
+        width : 200px;
+        height: 500px;
+        overflow: hidden;
+    }
+
+</style>
+
+</head>
+<body onload="init();">
+
+    <div id="pad">touchpad</div>
+
+    <div id="">
+        <div id="barContainer">
+            <div id="bar"></div>
+        </div>
+        <div id="chunkContainer">
+            <div id="chunk">@</div>
+        </div>
+    </div>
+
+    <div id="info"></div>
+
+    <div id="intro">
+        <p>This is a prototype of some improvements to the Circular Scrolling
+        gesture provided in the X.org synaptics driver.  For a proper 
+        introduction, refer to the 
+        <a href="http://github.com/galundin/xorg-synaptics-circscroll-improved">README</a>.</p>
+        
+        <p>Move the cursor around within the "touchpad" region and watch the
+        output.  Vary the center, radius, direction, shape, and speed of 
+        rotational movement to see how it responds.  It works best 
+        with an actual touchpad, because mouse control doesn't provide the 
+        same dexterity as a finger.  This prototype does not implement edge 
+        detection, and does not respond to button state.</p>
+    </div>
+
+</body>
+</html>
