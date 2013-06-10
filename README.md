@@ -24,5 +24,5 @@ This recommendation is still perfectly appropriate, except that the circling doe
 
 I prototyped this in Javascript, and you can download it as a stand-alone HTML file (tested in Chrome and Firefox) at:
 
-http://github.com/galundin/xorg-synaptics-circscroll-improved/circscroll-prototype.html
+http://github.com/galundin/xorg-synaptics-circscroll-improved/blob/master/circscroll-prototype.html
 
