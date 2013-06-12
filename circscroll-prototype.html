@@ -83,9 +83,9 @@ function handleMouseMove (event) {
     prev_distance = distance;
 
     // update bar graph and scrolling chunk
-    update_bar("raw", delta, "0.1", true);
-    update_bar("filtered", filter_delta, "0.2", true);
-    update_bar("smooth", output_delta, "1", false);
+    update_bar("raw", delta, true);
+    update_bar("filtered", filter_delta, true);
+    update_bar("smooth", output_delta, false);
     update_chunk_position(output_delta);
 
     // begin coasting if no event received after a short delay
@@ -102,9 +102,9 @@ function coast() {
         coasting_delta = 0;
     }
     info("coasting_delta", coasting_delta * 100);
-    update_bar("raw", 0, "0.1", false);
-    update_bar("filtered", 0, "0.2", false);
-    update_bar("smooth", coasting_delta, "1", false);
+    update_bar("raw", 0, false);
+    update_bar("filtered", 0, false);
+    update_bar("smooth", coasting_delta, false);
     update_chunk_position(coasting_delta);
 }
 
@@ -128,10 +128,9 @@ function update_chunk_position(output_delta) {
     chunk.style.top = parseInt(chunk_pos) + "px";
 }
 
-function update_bar(name, linear_value, opacity, cubed) {
-    var display_value;
-    if (cubed == true) display_value = linear_value * linear_value * linear_value * 2000;
-    else display_value = linear_value * 2000;
+function update_bar(name, linear_value, cubed) {
+    if (cubed == true) linear_value *= linear_value * linear_value;
+    display_value = linear_value * 2000;
     var bar = document.getElementById(name);
     bar.style.height = parseInt(Math.abs(display_value)) + "px";
     if (display_value < 0) {
@@ -141,10 +140,10 @@ function update_bar(name, linear_value, opacity, cubed) {
         bar.style.top = 250 + "px";
         bar.style.backgroundColor = "blue";
     }
-    bar.style.opacity = opacity;
 }
 
 function info(label, value) {
+    return;
     var infodiv = document.getElementById("info");
     if (label == "CLEAR") infodiv.innerHTML = "";
     else infodiv.innerHTML += label + ": " + value.toFixed(2) + "<br>";
@@ -220,6 +219,18 @@ function info(label, value) {
         position: relative;
         background-color: red;
         width: 20px;
+    }
+
+    #raw {
+        opacity: 0.1;
+    }
+
+    #filtered {
+        opacity: 0.2;
+    }
+
+    #smooth {
+        opacity: 0.7;
     }
 
     #info {
