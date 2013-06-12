@@ -16,7 +16,6 @@ var prev_angle = 0;
 var filter_delta = 0;
 var adaptive_delta = 0;
 var prev_distance = 0;
-var coasting_delta = 0;
 var coasting_timer = 0;
 var chunk_pos = 240;
 
@@ -90,17 +89,20 @@ function handleMouseMove (event) {
 
     // begin coasting if no event received after a short delay
     // this would be integrated into the driver's existing coasting system
-    coasting_delta = output_delta;
-    coasting_timer = window.setInterval(coast, 50)
+    coasting_timer = window.setInterval(coast, 30)
 }
 
 function coast() {
-    adaptive_delta = 0;
-    coasting_delta *= .7;
-    if (Math.abs(coasting_delta) < .001) {
+    var friction = .02;
+    if (adaptive_delta > friction)
+        adaptive_delta -= friction;
+    else if (adaptive_delta < -friction)
+        adaptive_delta += friction;
+    else {
         window.clearInterval(coasting_timer);
-        coasting_delta = 0;
+        adaptive_delta = 0;
     }
+    coasting_delta = adaptive_delta * adaptive_delta * adaptive_delta;
     info("coasting_delta", coasting_delta * 100);
     update_bar("raw", 0, false);
     update_bar("filtered", 0, false);
@@ -234,6 +236,7 @@ function info(label, value) {
     }
 
     #info {
+        display: none;
         float: left;
         font-family: monospace;
         width : 200px;
