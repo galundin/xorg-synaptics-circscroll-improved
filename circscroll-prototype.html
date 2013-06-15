@@ -15,7 +15,6 @@ var adaptive_delta = 0;
 var coasting_timer = 0;
 
 function handleMouseMove (event) {
-
     // new event cancels coasting
     if (coasting_timer) window.clearInterval(coasting_timer);
 
@@ -38,17 +37,18 @@ function handleMouseMove (event) {
     filter_delta = (delta + filter_delta) / 2;
 
     // reduce weight for small movements
-    var min_distance = Math.min(distance, prev_distance) / 10;
-    min_distance = Math.log(min_distance + 1);
+    var min_distance = Math.min(distance, prev_distance);
+    var distance_factor = Math.log(1 + min_distance / 10);
 
     // adaptive filter coefficient
-    var weight = abs_delta * min_distance / (1 + delta_error * 100);
+    var weight = abs_delta * distance_factor / (1 + delta_error * 100);
     if (weight > 1) weight = 1;
 
     // adaptive filter
-    if (weight > 0) adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
+    adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
 
-    // actual output has cubic response, i.e. n*n*n
+    // for improved reliability and dynamic range,
+    // actual output has cubic response, e.g. n*n*n
     // this is handled in update_bar() and update_chunk_position()
 
     // store history
@@ -66,11 +66,10 @@ function handleMouseMove (event) {
 
 function delta_angle(a1, a2) {
     var n = (a2 - a1);
-    var d = (2 * Math.PI);
-    var da = n - parseInt(n/d) * d;
-
-    if (da < 0) da += 2 * Math.PI;
-    if (da > Math.PI) da -= 2 * Math.PI;
+    var d = 2 * Math.PI;
+    var da = n - parseInt(n / d) * d;
+    if (da < 0) da += d;
+    if (da > Math.PI) da -= d;
     return da;
 }
 
@@ -82,14 +81,12 @@ function coast() {
         adaptive_delta = 0;
         window.clearInterval(coasting_timer);
     }
-    
     filter_delta = 0;
     show_output(0);
 }
 
 /*
     The remaining cruft is not relevant to the gesture algorithm
-    (except for the cubic response in the update_ functions)
 */
 
 
@@ -103,8 +100,7 @@ function show_output(delta) {
 }
 
 function update_chunk_position(value) {
-    // cubic response
-    output_value = value * value * value;
+    output_value = value * value * value;  // cubic response
     chunk_pos -= output_value * 500;
     if (chunk_pos < 0) chunk_pos += 480;
     if (chunk_pos > 480) chunk_pos -= 480;
@@ -115,11 +111,8 @@ function update_chunk_position(value) {
 function update_bar(name, value) {
     checkbox = document.getElementById(name + "_checkbox");
     if (!checkbox.checked) return;
-
-    // cubic response
-    output_value = value * value * value;
+    output_value = value * value * value;  // cubic response
     display_value = output_value * 2000;
-    
     var bar = document.getElementById(name);
     bar.style.height = parseInt(Math.abs(display_value)) + "px";
     if (display_value < 0) {
@@ -223,7 +216,6 @@ function init() {
 
     .bar {
         position: relative;
-        background-color: red;
         width: 20px;
     }
 
