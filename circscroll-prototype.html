@@ -9,15 +9,15 @@
 var prev_x = 0;
 var prev_y = 0;
 var prev_angle = 0;
+var prev_distance = 0;
 var filter_delta = 0;
 var adaptive_delta = 0;
-var prev_distance = 0;
+var coasting_timer = 0;
 
 function handleMouseMove (event) {
 
     // new event cancels coasting
-    if (coasting_timer)
-        window.clearInterval(coasting_timer);
+    if (coasting_timer) window.clearInterval(coasting_timer);
 
     var dx = event.clientX - prev_x;
     var dy = event.clientY - prev_y;
@@ -47,6 +47,9 @@ function handleMouseMove (event) {
 
     // adaptive filter
     if (weight > 0) adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
+
+    // actual output has cubic response, i.e. n*n*n
+    // this is handled in update_bar() and update_chunk_position()
 
     // store history
     prev_x = event.clientX;
@@ -85,64 +88,38 @@ function coast() {
 }
 
 /*
-    This function updates the scroll position of a chunk of sample content.
-    It also shows the direction and magnitude of scrolling in three stages
-    of the filtering process.
-*/
-function show_output(delta) {
-
-    // actual output has cubic response to adaptive filtered delta angle
-    var output_delta = adaptive_delta * adaptive_delta * adaptive_delta;
-
-    update_bar("raw", delta, true);
-    update_bar("filtered", filter_delta, true);
-    update_bar("smooth", output_delta, false);
-    update_chunk_position(output_delta);
-}
-
-/*
     The remaining cruft is not relevant to the gesture algorithm
+    (except for the cubic response in the update_ functions)
 */
 
 
-var coasting_timer = 0;
 var chunk_pos = 240;
 
-function init() {
-    var pad = document.getElementById("pad");
-    pad.onmousemove = handleMouseMove;
-    bar_markup = create_bar("raw", "raw", "")
-               + create_bar("simple filter", "filtered", "")
-               + create_bar("adaptive filter", "smooth", "checked");
-    document.getElementById("bar_placeholder").innerHTML = bar_markup;
-    handleMouseMove({clientX:0,clientY:0});
-    toggle_bar("raw");
-    toggle_bar("filtered");
-    toggle_bar("smooth");
+function show_output(delta) {
+    update_bar("raw", delta);
+    update_bar("filtered", filter_delta);
+    update_bar("smooth", adaptive_delta);
+    update_chunk_position(adaptive_delta);
 }
 
-function create_bar(label, id, checked) {
-    return "<div id='barContainer'><div class='labelContainer'><div class='label'>"
-    + "<input type='checkbox' id='" + id + "_checkbox' "
-    + "onclick='toggle_bar(\"" + id + "\");' " + checked + ">"
-    + label + "</input></div></div><div class='bar' id='"
-    + id + "'></div></div>";
-    toggle_bar(id);
-}
-
-function update_chunk_position(output_delta) {
-    var chunk = document.getElementById("chunk");
-    chunk_pos -= output_delta * 500;
+function update_chunk_position(value) {
+    // cubic response
+    output_value = value * value * value;
+    chunk_pos -= output_value * 500;
     if (chunk_pos < 0) chunk_pos += 480;
     if (chunk_pos > 480) chunk_pos -= 480;
+    var chunk = document.getElementById("chunk");
     chunk.style.top = parseInt(chunk_pos) + "px";
 }
 
-function update_bar(name, value, cubed) {
+function update_bar(name, value) {
     checkbox = document.getElementById(name + "_checkbox");
     if (!checkbox.checked) return;
-    if (cubed == true) value *= value * value;
-    display_value = value * 2000;
+
+    // cubic response
+    output_value = value * value * value;
+    display_value = output_value * 2000;
+    
     var bar = document.getElementById(name);
     bar.style.height = parseInt(Math.abs(display_value)) + "px";
     if (display_value < 0) {
@@ -163,6 +140,27 @@ function toggle_bar(name) {
     } else {
         bar.parentNode.style.backgroundColor = "white";
     }
+}
+
+function create_bar(label, id, checked) {
+    return "<div id='barContainer'><div class='labelContainer'><div class='label'>"
+    + "<input type='checkbox' id='" + id + "_checkbox' "
+    + "onclick='toggle_bar(\"" + id + "\");' " + checked + ">"
+    + label + "</input></div></div><div class='bar' id='"
+    + id + "'></div></div>";
+}
+
+function init() {
+    var pad = document.getElementById("pad");
+    pad.onmousemove = handleMouseMove;
+    bar_markup = create_bar("raw", "raw", "")
+               + create_bar("simple filter", "filtered", "")
+               + create_bar("adaptive filter", "smooth", "checked");
+    document.getElementById("bar_placeholder").innerHTML = bar_markup;
+    toggle_bar("raw");
+    toggle_bar("filtered");
+    toggle_bar("smooth");
+    handleMouseMove({clientX:0,clientY:0});
 }
 
 </script>
