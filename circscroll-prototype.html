@@ -4,10 +4,6 @@
   Copyright 2013 Andrew Lundin
   MIT License
   http://opensource.org/licenses/MIT
-
-  This is only a prototype, throw-away code.
-  Don't mind the globals variables, inline constants,
-  and other elements of bad style.  ;)
 */
 
 var prev_x = 0;
@@ -16,14 +12,6 @@ var prev_angle = 0;
 var filter_delta = 0;
 var adaptive_delta = 0;
 var prev_distance = 0;
-var coasting_timer = 0;
-var chunk_pos = 240;
-
-function init() {
-    var pad = document.getElementById("pad");
-    pad.onmousemove = handleMouseMove;
-    handleMouseMove({clientX:0,clientY:0});
-}
 
 function handleMouseMove (event) {
 
@@ -31,11 +19,8 @@ function handleMouseMove (event) {
     if (coasting_timer)
         window.clearInterval(coasting_timer);
 
-    info("CLEAR");
     var dx = event.clientX - prev_x;
     var dy = event.clientY - prev_y;
-    info("dx", dx);
-    info("dy", dy);
 
     var angle = Math.atan2(dy, dx);
     var delta = delta_angle(prev_angle, angle);
@@ -43,37 +28,25 @@ function handleMouseMove (event) {
     var distance = Math.sqrt(dx * dx + dy * dy);
 
     // clamp spikes
-    if (abs_delta > .5)
-        delta = .5 * delta / abs_delta;
-    info("delta", delta);
+    if (abs_delta > .5) delta = .5 * delta / abs_delta;
 
     // error estimation
-    var delta_error = (delta - filter_delta) * 10;
+    var delta_error = delta - filter_delta;
     delta_error *= delta_error;
-    info("delta_error", delta_error);
 
     // naive filter for error estimation on next event
     filter_delta = (delta + filter_delta) / 2;
-    info("filter_delta", filter_delta);
 
     // reduce weight for small movements
     var min_distance = Math.min(distance, prev_distance) / 10;
     min_distance = Math.log(min_distance + 1);
-    info("min_distance", min_distance);
 
-    // calculate adaptive filter coefficient
-    var weight = abs_delta * min_distance / (1 + delta_error);
-    if (weight > 1)
-        weight = 1;
-    info("weight", weight);
+    // adaptive filter coefficient
+    var weight = abs_delta * min_distance / (1 + delta_error * 100);
+    if (weight > 1) weight = 1;
 
     // adaptive filter
-    if (weight > 0)
-        adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
-
-    // cubic response
-    var output_delta = adaptive_delta * adaptive_delta * adaptive_delta;
-    info("output_delta", output_delta * 100);
+    if (weight > 0) adaptive_delta = delta * weight + adaptive_delta * (1 - weight);
 
     // store history
     prev_x = event.clientX;
@@ -81,33 +54,11 @@ function handleMouseMove (event) {
     prev_angle = angle;
     prev_distance = distance;
 
-    // update bar graph and scrolling chunk
-    update_bar("raw", delta, true);
-    update_bar("filtered", filter_delta, true);
-    update_bar("smooth", output_delta, false);
-    update_chunk_position(output_delta);
+    // update bar graphs and scrolling chunk of sample content
+    show_output(delta);
 
     // begin coasting if no event received after a short delay
-    // this would be integrated into the driver's existing coasting system
     coasting_timer = window.setInterval(coast, 30)
-}
-
-function coast() {
-    var friction = .02;
-    if (adaptive_delta > friction)
-        adaptive_delta -= friction;
-    else if (adaptive_delta < -friction)
-        adaptive_delta += friction;
-    else {
-        window.clearInterval(coasting_timer);
-        adaptive_delta = 0;
-    }
-    coasting_delta = adaptive_delta * adaptive_delta * adaptive_delta;
-    info("coasting_delta", coasting_delta * 100);
-    update_bar("raw", 0, false);
-    update_bar("filtered", 0, false);
-    update_bar("smooth", coasting_delta, false);
-    update_chunk_position(coasting_delta);
 }
 
 function delta_angle(a1, a2) {
@@ -115,11 +66,68 @@ function delta_angle(a1, a2) {
     var d = (2 * Math.PI);
     var da = n - parseInt(n/d) * d;
 
-    if (da < 0)
-        da += 2 * Math.PI;
-    if (da > Math.PI)
-        da -= 2 * Math.PI;
+    if (da < 0) da += 2 * Math.PI;
+    if (da > Math.PI) da -= 2 * Math.PI;
     return da;
+}
+
+function coast() {
+    var friction = .02;
+    if (adaptive_delta > friction) adaptive_delta -= friction;
+    else if (adaptive_delta < -friction) adaptive_delta += friction;
+    else {
+        adaptive_delta = 0;
+        window.clearInterval(coasting_timer);
+    }
+    
+    filter_delta = 0;
+    show_output(0);
+}
+
+/*
+    This function updates the scroll position of a chunk of sample content.
+    It also shows the direction and magnitude of scrolling in three stages
+    of the filtering process.
+*/
+function show_output(delta) {
+
+    // actual output has cubic response to adaptive filtered delta angle
+    var output_delta = adaptive_delta * adaptive_delta * adaptive_delta;
+
+    update_bar("raw", delta, true);
+    update_bar("filtered", filter_delta, true);
+    update_bar("smooth", output_delta, false);
+    update_chunk_position(output_delta);
+}
+
+/*
+    The remaining cruft is not relevant to the gesture algorithm
+*/
+
+
+var coasting_timer = 0;
+var chunk_pos = 240;
+
+function init() {
+    var pad = document.getElementById("pad");
+    pad.onmousemove = handleMouseMove;
+    bar_markup = create_bar("raw", "raw", "")
+               + create_bar("simple filter", "filtered", "")
+               + create_bar("adaptive filter", "smooth", "checked");
+    document.getElementById("bar_placeholder").innerHTML = bar_markup;
+    handleMouseMove({clientX:0,clientY:0});
+    toggle_bar("raw");
+    toggle_bar("filtered");
+    toggle_bar("smooth");
+}
+
+function create_bar(label, id, checked) {
+    return "<div id='barContainer'><div class='labelContainer'><div class='label'>"
+    + "<input type='checkbox' id='" + id + "_checkbox' "
+    + "onclick='toggle_bar(\"" + id + "\");' " + checked + ">"
+    + label + "</input></div></div><div class='bar' id='"
+    + id + "'></div></div>";
+    toggle_bar(id);
 }
 
 function update_chunk_position(output_delta) {
@@ -130,9 +138,11 @@ function update_chunk_position(output_delta) {
     chunk.style.top = parseInt(chunk_pos) + "px";
 }
 
-function update_bar(name, linear_value, cubed) {
-    if (cubed == true) linear_value *= linear_value * linear_value;
-    display_value = linear_value * 2000;
+function update_bar(name, value, cubed) {
+    checkbox = document.getElementById(name + "_checkbox");
+    if (!checkbox.checked) return;
+    if (cubed == true) value *= value * value;
+    display_value = value * 2000;
     var bar = document.getElementById(name);
     bar.style.height = parseInt(Math.abs(display_value)) + "px";
     if (display_value < 0) {
@@ -144,11 +154,15 @@ function update_bar(name, linear_value, cubed) {
     }
 }
 
-function info(label, value) {
-    return;
-    var infodiv = document.getElementById("info");
-    if (label == "CLEAR") infodiv.innerHTML = "";
-    else infodiv.innerHTML += label + ": " + value.toFixed(2) + "<br>";
+function toggle_bar(name) {
+    var bar = document.getElementById(name);
+    var checkbox = document.getElementById(name + "_checkbox");
+    if (!checkbox.checked) {
+        bar.style.height = 0;
+        bar.parentNode.style.backgroundColor = "lightgray";
+    } else {
+        bar.parentNode.style.backgroundColor = "white";
+    }
 }
 
 </script>
@@ -224,24 +238,15 @@ function info(label, value) {
     }
 
     #raw {
-        opacity: 0.1;
+        opacity: 0.3;
     }
 
     #filtered {
-        opacity: 0.2;
+        opacity: 0.5;
     }
 
     #smooth {
         opacity: 0.7;
-    }
-
-    #info {
-        display: none;
-        float: left;
-        font-family: monospace;
-        width : 200px;
-        height: 500px;
-        overflow: hidden;
     }
 
 </style>
@@ -251,12 +256,8 @@ function info(label, value) {
 
     <div id="pad">touchpad</div>
 
-    <div id="barContainer"><div class="labelContainer"><div class="label">raw</div></div><div class="bar" id="raw"></div></div>
-    <div id="barContainer"><div class="labelContainer"><div class="label">simple filter</div></div><div class="bar" id="filtered"></div></div>
-    <div id="barContainer"><div class="labelContainer"><div class="label">adaptive filter</div></div><div class="bar" id="smooth"></div></div>
+    <div id="bar_placeholder"></div>
     <div id="chunkContainer"><div class="labelContainer"><div class="label">scrolling content</div></div><div id="chunk">@</div></div>
-
-    <div id="info"></div>
 
     <div id="intro">
         <p>This is a prototype of some improvements to the Circular Scrolling
