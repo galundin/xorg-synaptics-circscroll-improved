@@ -85,6 +85,7 @@ function coast() {
     show_output(0);
 }
 
+
 /*
     The remaining cruft is not relevant to the gesture algorithm
 */
@@ -247,12 +248,18 @@ function init() {
         introduction, refer to the 
         <a href="http://github.com/galundin/xorg-synaptics-circscroll-improved">README</a>.</p>
         
-        <p>Move the cursor around within the "touchpad" region and watch the
-        output.  Vary the center, radius, direction, shape, and speed of 
-        rotational movement to see how it responds.  It works best 
-        with an actual touchpad, because mouse control doesn't provide the 
-        same dexterity as a finger.  This prototype does not implement edge 
-        detection, and does not respond to button state.</p>
+        <p>Move the cursor in clockwise and counter-clockwise circles within 
+        the "touchpad" region and watch the output.  It works best when 
+        controlled with an actual touchpad (or touchscreen), because mouse 
+        control doesn't provide the same dexterity as a finger.  This prototype 
+        does not implement edge detection, and does not respond to button state.</p>
+        
+        <p><b>slow, wide</b>: very fine control, low noise, high latency<br/>
+        <b>fast, wide</b>: quick response, medium speed, high noise<br/>
+        <b>slow, tight</b>: low noise, high inertia - good for "gliding"<br/>
+        <b>fast, tight</b>: very fast, low noise, moderate latency</p>
+        
+        <p><b>ProTip</b>: kick-in with a wide arc, then tighten to speed or glide.</p>
     </div>
 
 </body>

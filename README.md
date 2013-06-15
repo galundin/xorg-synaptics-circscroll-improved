@@ -1,7 +1,7 @@
 xorg-synaptics-circscroll-improved
 ==================================
 
-UPDATE: It has been suggested to use a system-wide gesture framework, instead of patching the driver.  I'm still looking into that.
+*UPDATE: It has been suggested to use a system-wide gesture framework, instead of patching the driver.  I'm still looking into that.*
 
 The proprietary Synaptics touchpad driver provides a scrolling gesture called ChiralMotion (TM). I have found it to be the most efficient and effortless scrolling input I have used on any device, and I really miss it in the open source driver. Unfortunately, ChiralMotion is patented, and the proprietary Linux driver is only available to OEMs.
 
@@ -22,9 +22,10 @@ As stated in the man page:
  "Use tight circles near the center of the pad for fast scrolling 
  and large circles for better control."
 
-This recommendation is still perfectly appropriate, except that the circling doesn't need to be centered to the pad, it can be anywhere. I tried to find an optimal balance between latency and noise in response to radius and speed, consistent with that description. This is the main difference from ChiralMotion, in which the magnitude of scrolling is a function of distance moved. I believe my implementation is actually more intuitive and reliable than ChiralMotion. I'm sure the filter parameters could use a bit of tuning, but it works fairly well already.
+This recommendation is still perfectly appropriate, except that the circling doesn't need to be centered to the pad, it can be anywhere. I tried to find an optimal balance between latency and noise in response to radius and speed, consistent with that description. This is the main difference from ChiralMotion, in which the magnitude of scrolling is a function of distance moved. My implementation might actually be more intuitive and reliable than ChiralMotion. I'm sure the filter parameters could use a bit of tuning, but it works fairly well already.
 
 I prototyped this in Javascript, contained in a stand-alone HTML file, which you can view here:
 
 http://galundin.github.io/xorg-synaptics-circscroll-improved/circscroll-prototype.html
 
+Please take a look at the well-commented source of that page for details on the algorithm.
